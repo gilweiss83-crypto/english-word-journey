@@ -81,7 +81,11 @@ let progress=JSON.parse(localStorage.getItem("wordJourneyProgress")||'{"stars":{
 function selectedWords(){return words.filter(w=>appState.set==="all"||w[2]===appState.set)}
 function refreshStats(){let mastered=Object.values(progress.stars).filter(n=>n>=3).length,total=words.length;$("#progressCopy").textContent=mastered+" מתוך "+total+" מילים";$("#progressPercent").textContent=Math.round(mastered/total*100)+"%";$("#progressFill").style.width=(mastered/total*100)+"%";$("#statStars").textContent=Object.values(progress.stars).reduce((a,b)=>a+b,0)+" ⭐";$("#statSessions").textContent=progress.sessions||0;$("#statStreak").textContent=(progress.streak||0)+" 🔥"}
 function save(){localStorage.setItem("wordJourneyProgress",JSON.stringify(progress));refreshStats()}
-function speak(text){if(!sound||!window.speechSynthesis)return; speechSynthesis.cancel();let u=new SpeechSynthesisUtterance(text.replace(/[.!…]/g,""));u.lang="en-US";u.rate=.82;speechSynthesis.speak(u)}
+let cachedEnglishVoices=[];
+function loadEnglishVoices(){if(!window.speechSynthesis)return;cachedEnglishVoices=speechSynthesis.getVoices().filter(v=>/^en([_-]|$)/i.test(v.lang||""))}
+if(window.speechSynthesis){loadEnglishVoices();speechSynthesis.addEventListener("voiceschanged",loadEnglishVoices)}
+function chooseEnglishVoice(){let voices=(window.speechSynthesis?.getVoices?.()||cachedEnglishVoices).filter(v=>/^en([_-]|$)/i.test(v.lang||""));let score=v=>{let n=v.name.toLowerCase();return (/enhanced|premium|natural|neural/.test(n)?100:0)+(/ava|samantha|aria|jenny|allison|joanna/.test(n)?50:0)+(/en-us|en_us/.test(v.lang)?20:0)};return voices.sort((a,b)=>score(b)-score(a))[0]||null}
+function speak(text){if(!sound)return;if(!window.speechSynthesis||!window.SpeechSynthesisUtterance){return}let synth=window.speechSynthesis;synth.cancel();synth.resume();let u=new SpeechSynthesisUtterance(text.replace(/[.!…]/g,""));let voice=chooseEnglishVoice();if(voice){u.voice=voice;u.lang=voice.lang}else{u.lang="en-US"}u.rate=.88;u.pitch=1.02;u.volume=1;synth.speak(u)}
 function shuffle(a){return [...a].sort(()=>Math.random()-.5)}
 function begin(mode){appState.mode=mode;appState.deck=shuffle(selectedWords());appState.i=0;appState.stars=0;appState.answered=false;appState.round=0;appState.matched=[];appState.selected=null;$("#home").style.display="none";$(".bottom").style.display="none";game.classList.add("active");render()}
 function exitGame(){game.classList.remove("active");$("#home").style.display="grid";$(".bottom").style.display="block";save()}
